@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VayuLens (वायुLens) — GenAI Urban Smog & Air Defense Assistant</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js for Diurnal Curves -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
+
+  <!-- TOP EMERGENCY PRECAUTION TICKER -->
+  <aside id="safety-alert-banner" class="bg-gradient-to-r from-rose-900 via-amber-900 to-rose-900 text-rose-100 px-4 py-2 text-xs md:text-sm font-medium flex items-center justify-between border-b border-rose-700/50 shadow-md">
+    <div class="flex items-center space-x-2 overflow-hidden">
+      <span class="flex h-2.5 w-2.5 relative">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+      </span>
+      <span class="font-bold tracking-wider text-rose-200 uppercase">[URGENT ADVISORY]</span>
+      <span id="ticker-text" class="truncate">
+        Severe boundary-layer thermal inversion active. Peak toxic stagnation until 11:30 AM. Safe thermal clearing window: 1:00 PM – 2:30 PM.
+      </span>
+    </div>
+    <div class="flex items-center space-x-3 shrink-0 ml-2">
+      <button onclick="switchTab('safety')" class="underline hover:text-white font-semibold flex items-center gap-1">
+        <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
+        <span>Precaution Guide</span>
+      </button>
+      <button onclick="document.getElementById('safety-alert-banner').style.display='none'" class="text-rose-300 hover:text-white text-base">✕</button>
+    </div>
+  </aside>
+
+  <!-- NAVIGATION BAR -->
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      
+      <!-- LOGO & TAGLINE -->
+      <div class="flex items-center space-x-3 cursor-pointer" onclick="switchTab('routine')">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 via-teal-400 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+          <i data-lucide="wind" class="w-6 h-6 text-slate-950 font-bold"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-1.5">
+            <span class="text-xl font-black tracking-tight text-white">Vayu<span class="text-emerald-400">Lens</span></span>
+            <span class="text-[10px] bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono">वायुLens AI</span>
+          </div>
+          <p class="text-[10px] text-slate-400 -mt-0.5 hidden sm:block">GenAI Winter Smog & Community Shield</p>
+        </div>
+      </div>
+
+      <!-- LOCATION & PERSONA CONTROLS -->
+      <div class="flex items-center space-x-2 md:space-x-4">
+        
+        <!-- City Selector -->
+        <div class="relative">
+          <select id="city-selector" onchange="changeCity(this.value)" class="bg-slate-800 text-slate-200 text-xs md:text-sm border border-slate-700 rounded-lg px-2.5 py-1.5 pr-8 focus:outline-none focus:border-emerald-500 cursor-pointer appearance-none">
+            <option value="delhi">🇮🇳 Delhi-NCR (Severe Smog)</option>
+            <option value="lahore">🇵🇰 Lahore (Hazardous Inversion)</option>
+            <option value="beijing">🇨🇳 Beijing (Winter Inversion)</option>
+            <option value="krakow">🇵🇱 Krakow (Solid Fuel Smog)</option>
+            <option value="bakersfield">🇺🇸 Central Valley (Basin Stagnation)</option>
+            <option value="london">🇬🇧 London (Urban NO2 & Particulate)</option>
+          </select>
+          <i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none"></i>
+        </div>
+
+        <!-- Vulnerability Persona Switcher -->
+        <div class="relative hidden sm:block">
+          <select id="persona-selector" onchange="changePersona(this.value)" class="bg-slate-800 text-slate-200 text-xs md:text-sm border border-slate-700 rounded-lg px-2.5 py-1.5 pr-8 focus:outline-none focus:border-cyan-500 cursor-pointer appearance-none">
+            <option value="asthmatic">🫁 Asthmatic / Elderly (High Risk)</option>
+            <option value="toddler">👶 Infant / Toddler (Vulnerable)</option>
+            <option value="commuter">🚴 Daily Commuter (High Exposure)</option>
+            <option value="general">👤 General Household</option>
+          </select>
+          <i data-lucide="user" class="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none"></i>
+        </div>
+
+        <!-- Gemini API Key button -->
+        <button onclick="openApiKeyModal()" class="p-2 text-slate-400 hover:text-emerald-400 bg-slate-800/80 hover:bg-slate-800 rounded-lg border border-slate-700 transition" title="Gemini API Key Settings">
+          <i data-lucide="key" class="w-4 h-4"></i>
+        </button>
+
+        <!-- Live AQI Pill -->
+        <div id="live-aqi-pill" class="flex items-center space-x-2 px-3 py-1.5 rounded-lg border bg-rose-950/60 border-rose-600/50 text-rose-300">
+          <div class="text-right">
+            <div class="text-[9px] uppercase tracking-wider font-semibold text-rose-400">Live AQI</div>
+            <div id="live-aqi-num" class="text-base font-extrabold leading-none">428</div>
+          </div>
+          <span id="live-aqi-badge" class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-600 text-white uppercase">Severe</span>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- MAIN APP TABS -->
+    <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-1 overflow-x-auto no-scrollbar border-t border-slate-800/80 py-1.5 text-xs md:text-sm">
+      <button onclick="switchTab('routine')" id="tab-btn-routine" class="tab-btn flex items-center space-x-2 px-3 py-1.5 rounded-lg font-medium transition active-tab text-emerald-400 bg-slate-800">
+        <i data-lucide="clock" class="w-4 h-4"></i>
+        <span>Diurnal Routine</span>
+      </button>
+
+      <button onclick="switchTab('vision')" id="tab-btn-vision" class="tab-btn flex items-center space-x-2 px-3 py-1.5 rounded-lg font-medium transition text-slate-400 hover:text-slate-200">
+        <i data-lucide="camera" class="w-4 h-4"></i>
+        <span>VayuLens AI Auditor</span>
+      </button>
+
+      <button onclick="switchTab('chat')" id="tab-btn-chat" class="tab-btn flex items-center space-x-2 px-3 py-1.5 rounded-lg font-medium transition text-slate-400 hover:text-slate-200">
+        <i data-lucide="bot" class="w-4 h-4"></i>
+        <span class="flex items-center gap-1">VayuCopilot Chatbot <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span></span>
+      </button>
+
+      <button onclick="switchTab('family')" id="tab-btn-family" class="tab-btn flex items-center space-x-2 px-3 py-1.5 rounded-lg font-medium transition text-slate-400 hover:text-slate-200">
+        <i data-lucide="heart-pulse" class="w-4 h-4 text-rose-400"></i>
+        <span>Family & Health Hub</span>
+        <span id="family-count-badge" class="px-1.5 py-0.2 rounded-full text-[10px] bg-rose-500/20 text-rose-300 font-bold">4 Profiles</span>
+      </button>
+
+      <button onclick="switchTab('safety')" id="tab-btn-safety" class="tab-btn flex items-center space-x-2 px-3 py-1.5 rounded-lg font-medium transition text-slate-400 hover:text-slate-200">
+        <i data-lucide="shield-check" class="w-4 h-4"></i>
+        <span>Safety & Precautions</span>
+      </button>
+
+      <button onclick="switchTab('impact')" id="tab-btn-impact" class="tab-btn flex items-center space-x-2 px-3 py-1.5 rounded-lg font-medium transition text-slate-400 hover:text-slate-200">
+        <i data-lucide="activity" class="w-4 h-4"></i>
+        <span>Lung Shield & Impact</span>
+      </button>
+
+      <button onclick="switchTab('community')" id="tab-btn-community" class="tab-btn flex items-center space-x-2 px-3 py-1.5 rounded-lg font-medium transition text-slate-400 hover:text-slate-200">
+        <i data-lucide="users" class="w-4 h-4"></i>
+        <span>Community Shield</span>
+      </button>
+    </nav>
+  </header>
+
+  <!-- LIVE ATMOSPHERIC WEATHER & INVERSION TELEMETRY BAR -->
+  <section class="border-b border-slate-800 bg-slate-900/60 backdrop-blur-sm px-4 sm:px-6 lg:px-8 py-2.5">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3 text-xs">
+      
+      <!-- Current Microclimate Summary -->
+      <div class="flex items-center space-x-3">
+        <div class="w-8 h-8 rounded-lg bg-cyan-950 border border-cyan-700/50 flex items-center justify-center text-cyan-400">
+          <i data-lucide="cloud-fog" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="font-bold text-white text-sm" id="weather-temp">14°C</span>
+            <span class="text-slate-400">•</span>
+            <span class="text-slate-200 font-medium" id="weather-condition">Dense Winter Smog Fog</span>
+            <span id="weather-inversion-badge" class="px-2 py-0.2 rounded text-[10px] font-bold uppercase bg-rose-500/20 text-rose-300 border border-rose-500/30">
+              Thermal Trap Active
+            </span>
+          </div>
+          <div class="text-[11px] text-slate-400">
+            Microclimate station in <span class="text-slate-300 font-semibold" id="weather-city-name">Delhi-NCR</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Telemetry Gauges -->
+      <div class="flex flex-wrap items-center gap-2 sm:gap-4 text-[11px] text-slate-300">
+        <div class="flex items-center space-x-1.5 bg-slate-950/60 px-2.5 py-1 rounded-lg border border-slate-800">
+          <i data-lucide="droplets" class="w-3.5 h-3.5 text-cyan-400"></i>
+          <span>Humidity: <strong class="text-white" id="weather-humidity">78% RH</strong></span>
+        </div>
+
+        <div class="flex items-center space-x-1.5 bg-slate-950/60 px-2.5 py-1 rounded-lg border border-slate-800">
+          <i data-lucide="wind" class="w-3.5 h-3.5 text-teal-400"></i>
+          <span>Wind: <strong class="text-white" id="weather-wind">2.4 km/h (Calm)</strong></span>
+        </div>
+
+        <div class="flex items-center space-x-1.5 bg-slate-950/60 px-2.5 py-1 rounded-lg border border-slate-800 hidden md:flex">
+          <i data-lucide="gauge" class="w-3.5 h-3.5 text-amber-400"></i>
+          <span>Barometric: <strong class="text-white" id="weather-pressure">1019 hPa</strong></span>
+        </div>
+
+        <div class="flex items-center space-x-1.5 bg-slate-950/60 px-2.5 py-1 rounded-lg border border-slate-800 hidden lg:flex">
+          <i data-lucide="layers" class="w-3.5 h-3.5 text-purple-400"></i>
+          <span>Inversion Ceiling: <strong class="text-white" id="weather-ceiling">180 meters</strong></span>
+        </div>
+      </div>
+
+      <!-- Live Weather Refresh Action -->
+      <div class="flex items-center space-x-2 shrink-0">
+        <span class="text-[10px] text-slate-500 hidden sm:inline" id="weather-updated-time">Updated: Just Now</span>
+        <button onclick="refreshLiveWeatherData()" id="weather-refresh-btn" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5" id="weather-spin-icon"></i>
+          <span>Update Weather</span>
+        </button>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- MAIN VIEWPORT -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
+
+    <!-- ========================================== -->
+    <!-- TAB 1: DIURNAL ROUTINE & INVERSION SHIFTER -->
+    <!-- ========================================== -->
+    <section id="tab-routine" class="tab-content space-y-6">
+      
+      <!-- HERO ADAPTIVE CARD -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- INVERSION STATUS & THERMAL CLEARING CLOCK -->
+        <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl relative overflow-hidden">
+          <div class="absolute -right-16 -top-16 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div>
+              <div class="flex items-center space-x-2">
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30">Thermal Inversion Science</span>
+                <span class="text-xs text-slate-400">Atmospheric Boundary Layer: <span class="text-slate-200 font-semibold" id="boundary-layer-height">180m (Trapped)</span></span>
+              </div>
+              <h2 class="text-xl font-bold text-white mt-1">24-Hour Diurnal Inversion & Protection Curve</h2>
+            </div>
+            
+            <div class="flex items-center space-x-2 text-xs">
+              <span class="flex items-center space-x-1 text-emerald-400"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span><span>Safe Window</span></span>
+              <span class="flex items-center space-x-1 text-rose-400"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span><span>Toxic Stagnation</span></span>
+            </div>
+          </div>
+
+          <!-- CHART CONTAINER -->
+          <div class="h-64 w-full">
+            <canvas id="diurnalChart"></canvas>
+          </div>
+
+          <!-- THERMAL WINDOW HIGHLIGHT CALLOUT -->
+          <div class="mt-4 p-3.5 bg-gradient-to-r from-emerald-950/60 via-slate-800/80 to-slate-900 border border-emerald-500/30 rounded-xl flex items-center justify-between text-xs md:text-sm">
+            <div class="flex items-center space-x-3">
+              <div class="w-9 h-9 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                <i data-lucide="sun-medium" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <span class="font-bold text-emerald-300">Golden Clean-Air Window Today: <span id="golden-window-hours">1:00 PM – 2:45 PM</span></span>
+                <p class="text-slate-400 text-xs">Solar radiation lifts the inversion ceiling. Schedule rapid 20-min cross-ventilation and urgent outdoor transit here.</p>
+              </div>
+            </div>
+            <button onclick="applyOptimalRoutine()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-semibold text-xs transition shadow-md shrink-0">
+              Auto-Align Routine
+            </button>
+          </div>
+        </div>
+
+        <!-- TAILORED VULNERABILITY SUMMARY -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400">Vulnerability Assessment</h3>
+              <span id="persona-badge" class="px-2 py-0.5 text-xs rounded-full font-bold bg-cyan-950 text-cyan-300 border border-cyan-700/50">Asthmatic Mode</span>
+            </div>
+
+            <div class="mt-4 p-4 rounded-xl bg-slate-950/70 border border-slate-800">
+              <div class="text-xs text-slate-400">Current Inhalation Hazard Rating</div>
+              <div class="text-2xl font-black text-rose-400 mt-1 flex items-baseline gap-2">
+                <span>Severe Respiratory Stress</span>
+                <span class="text-xs text-rose-500 font-semibold">(Tier 5 of 5)</span>
+              </div>
+              <p id="persona-guidance" class="text-xs text-slate-300 mt-2 leading-relaxed">
+                Cold dense dawn air contains ultra-fine particles (PM1.0/PM2.5) with bound polycyclic aromatic hydrocarbons. Bronchial spasm risk is elevated by 340% between 5:30 AM – 9:30 AM.
+              </p>
+            </div>
+
+            <!-- KEY TODAY HACKS -->
+            <div class="mt-4 space-y-2.5">
+              <div class="text-xs font-semibold text-slate-300 uppercase tracking-wide">Essential Today Actions</div>
+              
+              <div class="flex items-start space-x-2.5 text-xs text-slate-300 bg-slate-800/40 p-2.5 rounded-lg border border-slate-700/40">
+                <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5"></i>
+                <span>Seal bedroom door gap with a damp rolled towel before 8:00 PM smog subsidence.</span>
+              </div>
+
+              <div class="flex items-start space-x-2.5 text-xs text-slate-300 bg-slate-800/40 p-2.5 rounded-lg border border-slate-700/40">
+                <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5"></i>
+                <span>Switch car ventilation to <strong class="text-white">Strict Recirculation</strong> mode. Never use outside air during morning rush hour.</span>
+              </div>
+
+              <div class="flex items-start space-x-2.5 text-xs text-slate-300 bg-slate-800/40 p-2.5 rounded-lg border border-slate-700/40">
+                <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5"></i>
+                <span>Avoid wet mop sweeping with strong floor detergents; use pure micro-fiber damp dusters.</span>
+              </div>
+            </div>
+          </div>
+
+          <button onclick="switchTab('chat'); setChatPrompt('What specific medicine and inhaler precautions should asthmatics follow during current AQI?')" class="mt-4 w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-xl font-medium flex items-center justify-center gap-1.5 border border-slate-700 transition">
+            <i data-lucide="message-square" class="w-3.5 h-3.5 text-cyan-400"></i>
+            <span>Ask VayuCopilot for Clinical Routine Hack</span>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- DYNAMIC HOURLY SCHEDULE & CHECKLIST -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+          <div>
+            <h3 class="text-lg font-bold text-white">GenAI-Optimized Diurnal Daily Schedule</h3>
+            <p class="text-xs text-slate-400">Synchronized with thermal inversion boundaries to reduce PM2.5 lung load by ~65%.</p>
+          </div>
+          <div class="flex items-center space-x-2 text-xs">
+            <span class="text-slate-400">Completed: <span id="tasks-completed" class="font-bold text-emerald-400">0</span>/6</span>
+            <button onclick="resetRoutine()" class="text-slate-400 hover:text-white underline">Reset</button>
+          </div>
+        </div>
+
+        <div id="hourly-routine-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+    </section>
+
+
+    <!-- ========================================== -->
+    <!-- TAB 2: VAYULENS VISION AI (ROOM & IAQ AUDIT)-->
+    <!-- ========================================== -->
+    <section id="tab-vision" class="tab-content hidden space-y-6">
+      
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- LEFT: CAMERA & IMAGE CAPTURE -->
+        <div class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                <i data-lucide="camera" class="w-5 h-5 text-emerald-400"></i>
+                <span>VayuLens Multimodal Vision Auditor</span>
+              </h2>
+              <p class="text-xs text-slate-400">Inspect room air seal, air purifier airflow placement, or DIY Corsi-Rosenthal build.</p>
+            </div>
+            <span class="text-[10px] bg-slate-800 border border-slate-700 text-slate-300 px-2 py-0.5 rounded">Gemini Multimodal Lens</span>
+          </div>
+
+          <!-- VIDEO / IMAGE PREVIEW AREA -->
+          <div class="relative w-full aspect-video bg-slate-950 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center group">
+            
+            <video id="webcam-stream" class="w-full h-full object-cover hidden" autoplay playsinline muted></video>
+            <canvas id="photo-canvas" class="w-full h-full object-cover hidden"></canvas>
+            <img id="uploaded-image-preview" class="w-full h-full object-cover hidden" alt="Uploaded Room Photo">
+
+            <!-- Placeholder Screen -->
+            <div id="camera-placeholder" class="text-center p-6 space-y-3">
+              <div class="w-16 h-16 mx-auto rounded-2xl bg-slate-900 border border-slate-700/60 flex items-center justify-center text-slate-400 group-hover:text-emerald-400 group-hover:border-emerald-500/40 transition">
+                <i data-lucide="scan" class="w-8 h-8"></i>
+              </div>
+              <div>
+                <p class="text-sm font-semibold text-slate-300">Scan Living Room, Window Gaps, or Air Purifier</p>
+                <p class="text-xs text-slate-500 max-w-sm mx-auto mt-1">Upload a photo or activate the webcam. Gemini Vision inspects CADR clearances, draft leaks, and indoor toxin traps.</p>
+              </div>
+              <div class="flex flex-wrap justify-center gap-2 pt-2">
+                <button onclick="startCamera()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition shadow-lg">
+                  <i data-lucide="video" class="w-4 h-4"></i>
+                  <span>Live Camera</span>
+                </button>
+                <label class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer">
+                  <i data-lucide="upload" class="w-4 h-4 text-cyan-400"></i>
+                  <span>Upload Photo</span>
+                  <input type="file" id="image-file-input" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+                </label>
+              </div>
+            </div>
+
+            <!-- Dynamic Scan Overlay Reticle -->
+            <div id="scan-animation" class="absolute inset-0 pointer-events-none hidden">
+              <div class="w-full h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-[0_0_15px_#10b981] animate-scan"></div>
+              <div class="absolute bottom-3 left-3 bg-slate-900/90 backdrop-blur px-2.5 py-1 rounded border border-emerald-500/40 text-[11px] text-emerald-300 flex items-center gap-2">
+                <i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i>
+                <span>Gemini Vision analyzing spatial airflow & seal integrity...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- CONTROLS ROW -->
+          <div class="flex items-center justify-between text-xs pt-1">
+            <div class="flex items-center space-x-2">
+              <button id="snap-btn" onclick="capturePhoto()" class="hidden px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold flex items-center gap-1.5 transition">
+                <i data-lucide="aperture" class="w-4 h-4"></i>
+                <span>Audit Snapshot</span>
+              </button>
+              <button id="stop-cam-btn" onclick="stopCamera()" class="hidden px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg">
+                Stop Camera
+              </button>
+            </div>
+
+            <!-- DEMO PRESET BUTTONS FOR INSTANT TESTING -->
+            <div class="flex items-center space-x-1.5">
+              <span class="text-slate-500 text-[11px] mr-1">Quick Demo Presets:</span>
+              <button onclick="loadSampleScan('unsealed_window')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] text-slate-300">
+                🪟 Leaky Window
+              </button>
+              <button onclick="loadSampleScan('blocked_purifier')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] text-slate-300">
+                💨 Corner Purifier
+              </button>
+              <button onclick="loadSampleScan('corsi_box')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] text-slate-300">
+                📦 DIY Corsi Box
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: AUDIT REPORT & DIY MITIGATION -->
+        <div class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-bold uppercase tracking-wider text-slate-300">VayuLens Diagnostic Report</h3>
+              <span id="audit-score-badge" class="px-2.5 py-0.5 text-xs font-bold rounded-full bg-slate-800 text-slate-400 border border-slate-700">Awaiting Scan</span>
+            </div>
+
+            <div id="audit-results-container" class="space-y-3.5">
+              <div class="p-4 rounded-xl bg-slate-950/60 border border-dashed border-slate-800 text-center py-8">
+                <i data-lucide="clipboard-check" class="w-8 h-8 text-slate-600 mx-auto mb-2"></i>
+                <p class="text-xs text-slate-400">No scan active. Capture or pick a demo preset on the left to reveal IAQ vulnerabilities, air leak thermal channels, and DIY filtration hacks.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- CORSI-ROSENTHAL BOX QUICK BUILDER GUIDE -->
+          <div class="mt-4 pt-3 border-t border-slate-800/80">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <i data-lucide="wrench" class="w-4 h-4 text-amber-400"></i>
+                <span class="text-xs font-bold text-slate-200">DIY Corsi-Rosenthal Air Filter</span>
+              </div>
+              <button onclick="showCorsiModal()" class="text-xs text-amber-400 hover:underline font-semibold">View Guide ($25 vs $300)</button>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-0.5">Build a 500+ CADR high-volume HEPA-equivalent purifier using 4 MERV-13 furnace filters and a 20" box fan.</p>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ========================================== -->
+    <!-- TAB 3: VAYUCOPILOT AI CHATBOT (USER QUERY) -->
+    <!-- ========================================== -->
+    <section id="tab-chat" class="tab-content hidden space-y-4">
+      
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl flex flex-col h-[76vh] overflow-hidden">
+        
+        <!-- CHAT HEADER -->
+        <div class="p-4 border-b border-slate-800 bg-slate-900/90 flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/20">
+              <i data-lucide="bot" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <div class="flex items-center space-x-2">
+                <h3 class="text-base font-bold text-white">VayuCopilot AI</h3>
+                <span class="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  Active Copilot
+                </span>
+              </div>
+              <p class="text-xs text-slate-400">Ask any question on winter smog, child safety, air purifier hacks, masks & myths.</p>
+            </div>
+          </div>
+
+          <div class="flex items-center space-x-2">
+            <button onclick="clearChat()" class="text-xs text-slate-400 hover:text-slate-200 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 transition" title="Clear Conversation">
+              Clear
+            </button>
+            <button onclick="openApiKeyModal()" class="text-xs text-cyan-300 hover:text-cyan-200 px-2.5 py-1 rounded bg-cyan-950 border border-cyan-800/60 transition flex items-center gap-1">
+              <i data-lucide="cpu" class="w-3.5 h-3.5"></i>
+              <span id="gemini-status-indicator">Gemini API</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- QUICK PROMPT SUGGESTION CHIPS -->
+        <div class="px-4 py-2.5 bg-slate-950/60 border-b border-slate-800/80 flex items-center space-x-2 overflow-x-auto no-scrollbar text-xs">
+          <span class="text-slate-500 shrink-0 text-[11px] font-medium">Quick Prompts:</span>
+          <button onclick="setChatPrompt('Is it safe for my 4-year-old toddler to play outdoors in the afternoon?')" class="chip px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 shrink-0 transition">
+            👶 Toddler outdoor play safe?
+          </button>
+          <button onclick="setChatPrompt('How to seal sliding windows without spending money on expensive weatherstripping?')" class="chip px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 shrink-0 transition">
+            🪟 DIY zero-cost window sealing
+          </button>
+          <button onclick="setChatPrompt('Do cloth masks or surgical masks protect against PM2.5 winter smog?')" class="chip px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 shrink-0 transition">
+            😷 Cloth vs N95 mask truth
+          </button>
+          <button onclick="setChatPrompt('Are ionic or ozone-generating air purifiers safe for bedrooms?')" class="chip px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 shrink-0 transition">
+            ⚡ Are Ionizers dangerous?
+          </button>
+          <button onclick="setChatPrompt('What are red flag symptoms when breathing smoggy air that require an ER visit?')" class="chip px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 shrink-0 transition">
+            🚨 Emergency red-flag symptoms
+          </button>
+        </div>
+
+        <!-- CHAT MESSAGES LOG CONTAINER -->
+        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-950/40">
+          
+          <!-- INITIAL BOT WELCOME -->
+          <div class="flex items-start space-x-3 max-w-2xl">
+            <div class="w-8 h-8 rounded-lg bg-cyan-600 flex items-center justify-center text-white shrink-0 shadow">
+              <i data-lucide="bot" class="w-4 h-4"></i>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-sm p-4 text-xs md:text-sm text-slate-200 space-y-2 shadow-md">
+              <p class="font-semibold text-white">Namaste & Welcome to VayuCopilot! 🌬️</p>
+              <p>I am your dedicated environmental and respiratory health AI assistant. I continuously evaluate local winter thermal inversion, AQI levels, and household vulnerability factors.</p>
+              <p class="text-slate-400">Feel free to ask about personalized routines, DIY room filtration, mask fit tests, or specific symptoms. How can I help your family stay safe today?</p>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- CHAT INPUT FORM -->
+        <div class="p-3.5 bg-slate-900 border-t border-slate-800">
+          <form id="chat-form" onsubmit="handleChatSubmit(event)" class="flex items-center space-x-2">
+            <input 
+              type="text" 
+              id="chat-input" 
+              placeholder="Ask anything about smog protection, daily routines, indoor hacks, or safety..." 
+              class="flex-1 bg-slate-950 text-slate-100 placeholder-slate-500 border border-slate-700 rounded-xl px-4 py-2.5 text-xs md:text-sm focus:outline-none focus:border-cyan-500 transition"
+              autocomplete="off"
+            >
+            <button type="submit" id="chat-send-btn" class="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs md:text-sm font-bold flex items-center gap-1.5 transition shadow-lg shrink-0">
+              <span>Send</span>
+              <i data-lucide="send" class="w-4 h-4"></i>
+            </button>
+          </form>
+          <div class="flex items-center justify-between text-[11px] text-slate-500 mt-1.5 px-1">
+            <span>Powered by Gemini Multimodal & Environmental Inversion Knowledge Base</span>
+            <span class="text-rose-400 font-medium">⚠️ Medical disclaimer: Not a substitute for emergency clinical care.</span>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ========================================== -->
+    <!-- TAB: FAMILY & RESPIRATORY HEALTH TRACKING  -->
+    <!-- ========================================== -->
+    <section id="tab-family" class="tab-content hidden space-y-6">
+      
+      <!-- TOP COMMAND BAR -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="px-2.5 py-0.5 rounded text-[10px] font-extrabold uppercase bg-rose-500/20 text-rose-300 border border-rose-500/30">
+              Personalized Household Protection
+            </span>
+            <span class="text-xs text-slate-400">Profiles: <strong class="text-white" id="family-profile-count">4 Active</strong></span>
+          </div>
+          <h2 class="text-xl font-bold text-white mt-1">Family Health & Respiratory Tracking Hub</h2>
+          <p class="text-xs text-slate-400">Tailored medical profiles, daily peak-flow & SpO2 logging, and clinical smog alerts.</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="openAddMemberModal()" class="px-3.5 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition shadow">
+            <i data-lucide="user-plus" class="w-4 h-4"></i>
+            <span>Add Family Member</span>
+          </button>
+          <button onclick="openLogVitalsModal()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition shadow">
+            <i data-lucide="clipboard-list" class="w-4 h-4"></i>
+            <span>Log Today's Vitals</span>
+          </button>
+          <button onclick="openDoctorSummaryModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+            <i data-lucide="file-text" class="w-4 h-4 text-amber-400"></i>
+            <span>Doctor Summary</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- AUTOMATED CLINICAL HEALTH ALERT BANNER -->
+      <div id="family-clinical-alert" class="p-4 rounded-2xl bg-gradient-to-r from-amber-950/70 via-slate-900 to-slate-900 border border-amber-600/40 shadow-lg flex items-start space-x-3.5">
+        <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/30">
+          <i data-lucide="alert-circle" class="w-5 h-5"></i>
+        </div>
+        <div class="flex-1 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-amber-300 uppercase tracking-wide text-[11px]">AI Clinical Advisory Notice</span>
+            <span class="text-[10px] text-slate-400">Updated: Today</span>
+          </div>
+          <p id="family-alert-text" class="text-slate-200 mt-1 leading-relaxed">
+            <strong>Aarav (Child / Asthma):</strong> Peak Expiratory Flow recorded at 240 L/min (14% below baseline). High ambient PM2.5 in Delhi-NCR (428 µg/m³) is triggering bronchial hyper-reactivity. Keep nursery HEPA running continuously and ensure rescue inhaler is primed.
+          </p>
+        </div>
+      </div>
+
+      <!-- FAMILY MEMBERS CARDS GRID -->
+      <div id="family-members-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Rendered dynamically by app.js -->
+      </div>
+
+      <!-- VITALS LOGGER & 7-DAY CORRELATION TREND -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- QUICK VITALS LOGGING FORM -->
+        <div class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-bold uppercase tracking-wider text-white flex items-center gap-2">
+                <i data-lucide="heart-pulse" class="w-4 h-4 text-emerald-400"></i>
+                <span>Daily Symptom & Vitals Logger</span>
+              </h3>
+              <p class="text-[11px] text-slate-400">Record daily measurements to predict bronchial flare-ups.</p>
+            </div>
+            <span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-300">Quick Log</span>
+          </div>
+
+          <form id="vitals-form" onsubmit="handleVitalsSubmit(event)" class="space-y-3 text-xs">
+            <div>
+              <label class="block text-slate-300 font-semibold mb-1">Select Family Member:</label>
+              <select id="vitals-member-select" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500">
+                <!-- Populated dynamically -->
+              </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-slate-300 font-semibold mb-1">SpO2 Oxygen (%):</label>
+                <input type="number" id="vitals-spo2" min="80" max="100" value="98" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-emerald-500">
+              </div>
+
+              <div>
+                <label class="block text-slate-300 font-semibold mb-1">Peak Flow (L/min):</label>
+                <input type="number" id="vitals-pefr" min="50" max="800" value="320" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-emerald-500">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-slate-300 font-semibold mb-1">Cough Severity:</label>
+              <select id="vitals-cough" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-cyan-500">
+                <option value="none">No Cough (Normal)</option>
+                <option value="mild">Mild (Occasional Dry Throat)</option>
+                <option value="moderate">Moderate (Persistent daytime cough)</option>
+                <option value="severe">Severe (Nocturnal waking / spasm)</option>
+              </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-slate-300 font-semibold mb-1">Wheezing / Whistling:</label>
+                <select id="vitals-wheeze" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200">
+                  <option value="no">No Wheezing</option>
+                  <option value="mild">Mild on Exertion</option>
+                  <option value="yes">Audible at Rest</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-slate-300 font-semibold mb-1">Inhaler Puffs Today:</label>
+                <input type="number" id="vitals-inhaler" min="0" max="12" value="0" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-slate-300 font-semibold mb-1">Eye / Throat Burning:</label>
+              <select id="vitals-burn" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200">
+                <option value="no">None</option>
+                <option value="mild">Mild Itch / Watering</option>
+                <option value="severe">Severe Redness & Stinging</option>
+              </select>
+            </div>
+
+            <button type="submit" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow-lg mt-2 flex items-center justify-center gap-1.5">
+              <i data-lucide="check" class="w-4 h-4"></i>
+              <span>Save Vitals & Evaluate Clinical Score</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- 7-DAY SYMPTOM VS AQI CORRELATION CHART -->
+        <div class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <div>
+                <h3 class="text-sm font-bold uppercase tracking-wider text-white">7-Day Family Health vs Ambient Smog Correlation</h3>
+                <p class="text-xs text-slate-400">Tracks household respiratory symptom severity against fluctuating outdoor PM2.5 levels.</p>
+              </div>
+              <div class="flex items-center space-x-2 text-[10px]">
+                <span class="flex items-center space-x-1 text-rose-400"><span class="w-2 h-2 rounded-full bg-rose-500"></span><span>Outdoor AQI</span></span>
+                <span class="flex items-center space-x-1 text-cyan-400"><span class="w-2 h-2 rounded-full bg-cyan-400"></span><span>Symptom Index</span></span>
+              </div>
+            </div>
+
+            <!-- CHART CONTAINER -->
+            <div class="h-64 w-full mt-3">
+              <canvas id="healthTrendChart"></canvas>
+            </div>
+          </div>
+
+          <!-- INSIGHT BANNER -->
+          <div class="p-3 bg-slate-950/70 border border-slate-800 rounded-xl text-xs text-slate-300 mt-4 leading-relaxed">
+            <strong class="text-emerald-400">Clinical Correlation Insight:</strong> Spikes in outdoor AQI (>350) correlate with a 2.4× increase in nocturnal cough episodes within 12 hours. Using bedroom door seals and HEPA filtration lowers this flare-up risk by 68%.
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ========================================== -->
+    <!-- TAB 4: SAFETY REMINDERS & PRECAUTIONS CTR -->
+    <!-- ========================================== -->
+    <section id="tab-safety" class="tab-content hidden space-y-6">
+      
+      <!-- EMERGENCY RED-FLAG SYMPTOM CALLOUT -->
+      <div class="bg-gradient-to-r from-rose-950 via-rose-900/60 to-slate-900 border border-rose-700/60 rounded-2xl p-5 shadow-xl">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div class="flex items-start space-x-3.5 max-w-2xl">
+            <div class="w-11 h-11 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-rose-600/30">
+              <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <span class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-rose-500 text-white tracking-wider">Clinical Alert</span>
+              <h2 class="text-lg font-bold text-white mt-1">Severe Smog Red-Flag Emergency Symptoms</h2>
+              <p class="text-xs text-rose-200 mt-1 leading-relaxed">
+                If anyone in your household experiences any of the following symptoms during high AQI days, do not rely on air purifiers alone — seek immediate medical evaluation:
+              </p>
+            </div>
+          </div>
+
+          <button onclick="window.print()" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-rose-700/40 text-rose-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+            <i data-lucide="printer" class="w-4 h-4"></i>
+            <span>Print Family Checklist</span>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+          <div class="bg-rose-950/60 border border-rose-800/50 p-3 rounded-xl text-xs">
+            <div class="font-bold text-rose-300 flex items-center gap-1.5">
+              <i data-lucide="activity" class="w-4 h-4 text-rose-400"></i>
+              <span>Resting Dyspnea</span>
+            </div>
+            <p class="text-slate-300 text-[11px] mt-1">Shortness of breath while sitting still or difficulty speaking in full sentences.</p>
+          </div>
+
+          <div class="bg-rose-950/60 border border-rose-800/50 p-3 rounded-xl text-xs">
+            <div class="font-bold text-rose-300 flex items-center gap-1.5">
+              <i data-lucide="heart" class="w-4 h-4 text-rose-400"></i>
+              <span>Chest Heaviness</span>
+            </div>
+            <p class="text-slate-300 text-[11px] mt-1">Squeezing sensation or sharp retrosternal pain (particulate-triggered angina risk).</p>
+          </div>
+
+          <div class="bg-rose-950/60 border border-rose-800/50 p-3 rounded-xl text-xs">
+            <div class="font-bold text-rose-300 flex items-center gap-1.5">
+              <i data-lucide="volume-2" class="w-4 h-4 text-rose-400"></i>
+              <span>Stridor & Wheezing</span>
+            </div>
+            <p class="text-slate-300 text-[11px] mt-1">High-pitched musical whistling during breathing, unresponsive to standard relief inhaler.</p>
+          </div>
+
+          <div class="bg-rose-950/60 border border-rose-800/50 p-3 rounded-xl text-xs">
+            <div class="font-bold text-rose-300 flex items-center gap-1.5">
+              <i data-lucide="eye" class="w-4 h-4 text-rose-400"></i>
+              <span>Cyanosis & Confusion</span>
+            </div>
+            <p class="text-slate-300 text-[11px] mt-1">Bluish tint on fingernails, lips, or unusual lethargy/confusion in infants and seniors.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- SAFETY TIERS & BEST PRACTICES -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        
+        <!-- MASK EFFECTIVENESS AUDIT -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+          <div class="flex items-center space-x-2 text-cyan-400 mb-3">
+            <i data-lucide="smile" class="w-5 h-5"></i>
+            <h3 class="text-base font-bold text-white">Mask Science & Fit Truth</h3>
+          </div>
+          
+          <div class="space-y-3 text-xs">
+            <div class="p-3 rounded-xl bg-slate-950 border border-emerald-500/30">
+              <div class="flex items-center justify-between font-bold text-emerald-400">
+                <span>N95 / FFP2 / KF94</span>
+                <span class="text-emerald-300">95-99% Filtration</span>
+              </div>
+              <p class="text-slate-300 mt-1">Traps sub-micron PM2.5. Must form an airtight perimeter seal. Facial hair breaks the seal and reduces efficiency by up to 60%.</p>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-950 border border-amber-500/30">
+              <div class="flex items-center justify-between font-bold text-amber-400">
+                <span>Surgical 3-Ply Mask</span>
+                <span class="text-amber-300">30-40% Filtration</span>
+              </div>
+              <p class="text-slate-400 mt-1">Good for droplets, but massive side-gaps let fine particulate smog bypass the filter media directly into lungs.</p>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-950 border border-rose-500/30">
+              <div class="flex items-center justify-between font-bold text-rose-400">
+                <span>Cloth Mask / Scarf / Handkerchief</span>
+                <span class="text-rose-300">&lt;10% PM2.5 Filtration</span>
+              </div>
+              <p class="text-slate-400 mt-1"><strong class="text-rose-400">Dangerous false sense of security.</strong> Fabric weave pore size is 50-100x larger than toxic PM2.5 particles.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- INDOOR HEATER & CO POISONING PRECAUTION -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+          <div class="flex items-center space-x-2 text-amber-400 mb-3">
+            <i data-lucide="flame" class="w-5 h-5"></i>
+            <h3 class="text-base font-bold text-white">Winter Heating & CO Hazards</h3>
+          </div>
+
+          <div class="space-y-2.5 text-xs text-slate-300">
+            <div class="p-3 rounded-xl bg-amber-950/30 border border-amber-700/40">
+              <span class="font-bold text-amber-300">Zero-Emission Heating Rule:</span>
+              <p class="text-slate-300 mt-1">Never burn coal, wood, or use unvented kerosene heaters inside sealed winter rooms. Silent Carbon Monoxide (CO) poisoning spikes drastically during winter inversions.</p>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+              <span class="font-bold text-white">Electric Oil-Filled Radiator (OFR):</span>
+              <p class="text-slate-400 mt-1">Recommended for sealed bedrooms. Does not burn oxygen, produce combustion soot, or strip air moisture compared to cheap glowing coil heaters.</p>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+              <span class="font-bold text-white">Avoid Incense & Mosquito Coils:</span>
+              <p class="text-slate-400 mt-1">Burning 1 mosquito coil produces the equivalent PM2.5 of 75-100 cigarettes in a closed room. Use electric liquid vaporizers or mechanical nets instead.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- OZONE & IONIZER WARNING -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+          <div class="flex items-center space-x-2 text-purple-400 mb-3">
+            <i data-lucide="zap-off" class="w-5 h-5"></i>
+            <h3 class="text-base font-bold text-white">Beware Ionic "Purifiers"</h3>
+          </div>
+
+          <div class="space-y-2.5 text-xs text-slate-300">
+            <div class="p-3 rounded-xl bg-purple-950/30 border border-purple-700/40">
+              <span class="font-bold text-purple-300">The Ground-Level Ozone Trap:</span>
+              <p class="text-slate-300 mt-1">Beware of purifiers marketed as "ionic", "plasma", or "ozone generators". Ozone is a potent lung irritant that permanently scars alveoli tissue and worsens asthma.</p>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+              <span class="font-bold text-white">Gold Standard HEPA Only:</span>
+              <p class="text-slate-400 mt-1">True H13/H14 HEPA mechanical filtration relies on fiber interception and impaction — it emits ZERO secondary chemistry or ozone.</p>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-950 border border-slate-800">
+              <span class="font-bold text-white">Hydration & Mucosal Barrier:</span>
+              <p class="text-slate-400 mt-1">Drink 2.5–3L warm fluids daily. Maintain 40–50% indoor relative humidity to keep the nasal mucociliary escalator functioning to sweep particulates out.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ========================================== -->
+    <!-- TAB 5: LUNG SHIELD & CARBON IMPACT ENGINE  -->
+    <!-- ========================================== -->
+    <section id="tab-impact" class="tab-content hidden space-y-6">
+      
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 class="text-lg font-bold text-white">Lung Deposition Avoidance & Carbon Shield</h2>
+            <p class="text-xs text-slate-400">Calculate exact particulate mass prevented from entering alveoli by shifting your family's routine.</p>
+          </div>
+          <span class="text-xs bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 px-3 py-1 rounded-full font-mono">
+            WHO Physiological Intake Model
+          </span>
+        </div>
+
+        <!-- INTERACTIVE SIMULATION SLIDERS -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5 p-4 bg-slate-950/70 border border-slate-800 rounded-xl">
+          
+          <div>
+            <div class="flex justify-between text-xs font-semibold mb-1">
+              <span class="text-slate-300">N95 Compliance Outdoors:</span>
+              <span id="slider-mask-val" class="text-emerald-400 font-bold">100%</span>
+            </div>
+            <input type="range" id="slider-mask" min="0" max="100" value="100" oninput="recalculateImpact()" class="w-full accent-emerald-500">
+            <span class="text-[11px] text-slate-500">Percentage of outdoor transit wearing sealed N95</span>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs font-semibold mb-1">
+              <span class="text-slate-300">Routine Inversion Alignment:</span>
+              <span id="slider-routine-val" class="text-cyan-400 font-bold">Optimal (Midday)</span>
+            </div>
+            <input type="range" id="slider-routine" min="0" max="2" value="2" oninput="recalculateImpact()" class="w-full accent-cyan-500">
+            <span class="text-[11px] text-slate-500">0: Dawn Jog | 1: Mixed | 2: Midday Thermal Window</span>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs font-semibold mb-1">
+              <span class="text-slate-300">Sustainable Commute Switch:</span>
+              <span id="slider-commute-val" class="text-amber-400 font-bold">Metro / EV Pool</span>
+            </div>
+            <input type="range" id="slider-commute" min="0" max="2" value="2" oninput="recalculateImpact()" class="w-full accent-amber-500">
+            <span class="text-[11px] text-slate-500">0: Solo Petrol Car | 1: Scooter | 2: Metro/EV Carpool</span>
+          </div>
+
+        </div>
+
+        <!-- IMPACT METRIC TILES -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-5">
+          
+          <div class="p-4 rounded-xl bg-slate-950 border border-emerald-500/30">
+            <div class="text-xs text-slate-400">PM2.5 Lung Deposition Avoided</div>
+            <div id="metric-pm25-saved" class="text-3xl font-black text-emerald-400 mt-1">342 µg</div>
+            <p class="text-[11px] text-slate-400 mt-1.5">Deep alveolar mass prevented from entering bloodstream.</p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-slate-950 border border-cyan-500/30">
+            <div class="text-xs text-slate-400">Second-Hand Cigarette Equivalent</div>
+            <div id="metric-cigs-saved" class="text-3xl font-black text-cyan-400 mt-1">8.5 Cigs</div>
+            <p class="text-[11px] text-slate-400 mt-1.5">Spared daily toxic intake for your family.</p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-slate-950 border border-amber-500/30">
+            <div class="text-xs text-slate-400">Daily Urban CO2 Footprint Cut</div>
+            <div id="metric-co2-saved" class="text-3xl font-black text-amber-400 mt-1">4.2 kg</div>
+            <p class="text-[11px] text-slate-400 mt-1.5">Saved by shifting to EV carpool & electric radiator.</p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-slate-950 border border-purple-500/30">
+            <div class="text-xs text-slate-400">Indoor Exposure Reduction</div>
+            <div id="metric-indoor-reduction" class="text-3xl font-black text-purple-400 mt-1">78%</div>
+            <p class="text-[11px] text-slate-400 mt-1.5">Versus unsealed room baseline with leaky doors.</p>
+          </div>
+
+        </div>
+
+        <!-- EXPLANATION BANNER -->
+        <div class="mt-5 p-4 rounded-xl bg-slate-800/40 border border-slate-700/60 text-xs text-slate-300 leading-relaxed">
+          <strong class="text-white">Why This Matters:</strong> PM2.5 particulates carry toxic heavy metals, sulfates, and polycyclic aromatic hydrocarbons directly into pulmonary capillaries. By aligning your commute to the midday thermal clearing window and adhering to sealed N95 masks, you remove over 80% of daily systemic inflammation risk.
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ========================================== -->
+    <!-- TAB 6: COMMUNITY SMOG SHIELD & ACTION HUB  -->
+    <!-- ========================================== -->
+    <section id="tab-community" class="tab-content hidden space-y-6">
+      
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- COMMUNITY REPORT HOTSPOTS -->
+        <div class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                <i data-lucide="map" class="w-5 h-5 text-emerald-400"></i>
+                <span>Neighborhood Smog & Hazard Radar</span>
+              </h2>
+              <p class="text-xs text-slate-400">Crowdsourced alerts for localized biomass burning, diesel generators, and road dust.</p>
+            </div>
+            <button onclick="openReportModal()" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              <span>Report Hazard</span>
+            </button>
+          </div>
+
+          <!-- MOCK INTERACTIVE RADAR MAP -->
+          <div class="w-full h-72 bg-slate-950 rounded-xl border border-slate-800 relative overflow-hidden flex flex-col justify-between p-4">
+            <div class="absolute inset-0 opacity-20 bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:16px_16px]"></div>
+            
+            <div class="relative z-10 flex justify-between items-center text-xs">
+              <span class="bg-slate-900/90 border border-slate-700 text-slate-300 px-2.5 py-1 rounded-full font-mono">
+                📍 Radius: 5.0 km Hyperlocal Zone
+              </span>
+              <span class="text-emerald-400 font-semibold flex items-center gap-1">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                <span>4 Active Havens Active</span>
+              </span>
+            </div>
+
+            <!-- MOCK PINS ON RADAR -->
+            <div class="relative z-10 grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div class="bg-rose-950/80 border border-rose-600/70 p-2 rounded-lg text-[11px] text-rose-200 shadow-lg">
+                <div class="font-bold flex items-center gap-1 text-rose-400">
+                  <i data-lucide="flame" class="w-3.5 h-3.5"></i>
+                  <span>Waste Burning Spot</span>
+                </div>
+                <div class="text-[10px] text-slate-300">Sector 14 Park • Reported 18m ago</div>
+              </div>
+
+              <div class="bg-emerald-950/80 border border-emerald-600/70 p-2 rounded-lg text-[11px] text-emerald-200 shadow-lg">
+                <div class="font-bold flex items-center gap-1 text-emerald-400">
+                  <i data-lucide="shield" class="w-3.5 h-3.5"></i>
+                  <span>Central Library Haven</span>
+                </div>
+                <div class="text-[10px] text-slate-300">CADR 1200 HEPA • AQI 42 Inside</div>
+              </div>
+
+              <div class="bg-amber-950/80 border border-amber-600/70 p-2 rounded-lg text-[11px] text-amber-200 shadow-lg hidden sm:block">
+                <div class="font-bold flex items-center gap-1 text-amber-400">
+                  <i data-lucide="truck" class="w-3.5 h-3.5"></i>
+                  <span>Construction Dust Plume</span>
+                </div>
+                <div class="text-[10px] text-slate-300">Ring Road Bypass • Avoid transit</div>
+              </div>
+            </div>
+
+            <div class="relative z-10 text-[10px] text-slate-500 text-center">
+              Click any verified spot to view verified air purity status or report resolution.
+            </div>
+          </div>
+
+          <!-- NEIGHBORHOOD RESOLUTIONS FEED -->
+          <div id="community-reports-list" class="space-y-2">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- RIGHT: CLEAN-AIR HAVENS & SCHOOL CARPOOL -->
+        <div class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-slate-300">Community Clean-Air Havens</h3>
+            <span class="text-xs text-emerald-400 font-semibold">Free Public Access</span>
+          </div>
+
+          <div class="space-y-3 text-xs">
+            <div class="p-3 rounded-xl bg-slate-950 border border-emerald-500/30 flex items-center justify-between">
+              <div>
+                <span class="font-bold text-white">Central City Public Library</span>
+                <p class="text-slate-400 text-[11px] mt-0.5">Dual-stage HVAC MERV-14 Filtration. Working study pods.</p>
+                <div class="flex items-center gap-2 mt-1.5 text-[10px]">
+                  <span class="text-emerald-400 font-bold">Indoor AQI: 38</span>
+                  <span class="text-slate-500">• 1.2 km away</span>
+                </div>
+              </div>
+              <button onclick="alert('Directions copied to clipboard!')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700">Directions</button>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-950 border border-emerald-500/30 flex items-center justify-between">
+              <div>
+                <span class="font-bold text-white">Underground Metro Concourse</span>
+                <p class="text-slate-400 text-[11px] mt-0.5">Filtered subterranean air corridor. Ideal for seniors' daily walking.</p>
+                <div class="flex items-center gap-2 mt-1.5 text-[10px]">
+                  <span class="text-emerald-400 font-bold">Indoor AQI: 55</span>
+                  <span class="text-slate-500">• 0.8 km away</span>
+                </div>
+              </div>
+              <button onclick="alert('Directions copied to clipboard!')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700">Directions</button>
+            </div>
+          </div>
+
+          <!-- SCHOOL RUN CARPOOL SYNDICATE -->
+          <div class="pt-4 border-t border-slate-800/80">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                <i data-lucide="car" class="w-4 h-4 text-cyan-400"></i>
+                <span>School Morning Walking-Bus / Carpool</span>
+              </span>
+              <span class="text-[10px] text-cyan-400 font-bold bg-cyan-950 px-2 py-0.5 rounded">3 Active Pools</span>
+            </div>
+            <p class="text-xs text-slate-400">Consolidate school drop-offs to cut engine idle exhaust fumes outside school gates by 70%.</p>
+            <button onclick="joinCarpool()" class="mt-3 w-full py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-xl transition">
+              Join Neighborhood EV/Clean School Pool
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- MODALS -->
+
+  <!-- 1. CORSI-ROSENTHAL BOX DIY BUILDER MODAL -->
+  <div id="corsi-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-2 text-amber-400">
+          <i data-lucide="package" class="w-6 h-6"></i>
+          <h3 class="text-lg font-bold text-white">DIY Corsi-Rosenthal Box Air Cleaner</h3>
+        </div>
+        <button onclick="hideCorsiModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
+      </div>
+
+      <div class="text-xs text-slate-300 space-y-3 leading-relaxed">
+        <p>A proven open-source air purifier invented by environmental engineers. Delivers <strong>500+ CFM CADR</strong> (outperforming many $350 commercial purifiers) for under $30-$40.</p>
+        
+        <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
+          <div class="font-bold text-amber-300">Required Materials:</div>
+          <ul class="list-disc list-inside text-slate-400 space-y-1">
+            <li>1× 20" Box Fan (or standard square ventilation fan)</li>
+            <li>4× MERV-13 (or MPR 1900+) furnace filters (20" × 20" × 1" or 2")</li>
+            <li>1× Cardboard bottom shroud + Duct tape</li>
+          </ul>
+        </div>
+
+        <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
+          <div class="font-bold text-emerald-300">Assembly Steps:</div>
+          <ol class="list-decimal list-inside text-slate-400 space-y-1">
+            <li>Form a 4-sided cube using the 4 filters (airflow arrows pointing INWARD).</li>
+            <li>Tape cardboard to form the solid bottom base.</li>
+            <li>Mount the box fan on top with air blowing UPWARD.</li>
+            <li>Add a 15" circular cardboard shroud on top fan face to prevent corner recirculation.</li>
+          </ol>
+        </div>
+      </div>
+
+      <button onclick="hideCorsiModal()" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition">
+        Got it! Close Guide
+      </button>
+    </div>
+  </div>
+
+  <!-- 2. GEMINI API KEY MODAL -->
+  <div id="apikey-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-2 text-cyan-400">
+          <i data-lucide="key" class="w-5 h-5"></i>
+          <h3 class="text-base font-bold text-white">Gemini API Key Settings</h3>
+        </div>
+        <button onclick="closeApiKeyModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
+      </div>
+
+      <p class="text-xs text-slate-300 leading-relaxed">
+        Connect your Google Gemini API key to enable live multimodal visual analysis and conversational intelligence. If left blank, VayuLens uses high-precision localized simulation engines.
+      </p>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 mb-1">Google Gemini API Key:</label>
+        <input 
+          type="password" 
+          id="api-key-input" 
+          placeholder="AIzaSy..." 
+          class="w-full bg-slate-950 text-slate-100 placeholder-slate-600 border border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-cyan-500"
+        >
+      </div>
+
+      <div class="flex items-center justify-between pt-2">
+        <button onclick="saveApiKey()" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold transition">
+          Save Key
+        </button>
+        <button onclick="clearApiKey()" class="text-xs text-rose-400 hover:underline">
+          Remove Stored Key
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. REPORT HAZARD MODAL -->
+  <div id="report-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="alert-circle" class="w-5 h-5 text-rose-500"></i>
+          <span>Report Neighborhood Smog Hazard</span>
+        </h3>
+        <button onclick="closeReportModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-400 mb-1">Hazard Category:</label>
+          <select id="report-category" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200">
+            <option value="waste">🔥 Open Garbage / Leaf Burning</option>
+            <option value="dust">🚜 Construction Dust / Uncovered Plume</option>
+            <option value="generator">⚡ Commercial Diesel Generator Plume</option>
+            <option value="vehicle">🚚 Extreme Vehicle Smoke Idling</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1">Neighborhood / Landmark Location:</label>
+          <input type="text" id="report-location" placeholder="e.g. Near Community Center Gate 2" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200">
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1">Additional Observations:</label>
+          <textarea id="report-notes" rows="2" placeholder="Dense black smoke moving east towards school..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200"></textarea>
+        </div>
+      </div>
+
+      <button onclick="submitHazardReport()" class="w-full py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold transition">
+        Broadcast Community Alert
+      </button>
+    </div>
+  </div>
+
+  <!-- 4. ADD FAMILY MEMBER MODAL -->
+  <div id="add-member-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="user-plus" class="w-5 h-5 text-cyan-400"></i>
+          <span>Add Family Member Profile</span>
+        </h3>
+        <button onclick="closeAddMemberModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-400 mb-1">Full Name:</label>
+          <input type="text" id="new-member-name" placeholder="e.g. Grandma Sunita or Aarav" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Age:</label>
+            <input type="number" id="new-member-age" placeholder="6" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Role / Relationship:</label>
+            <select id="new-member-role" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200">
+              <option value="child">Child / Infant</option>
+              <option value="senior">Senior / Grandparent</option>
+              <option value="adult">Adult / Commuter</option>
+              <option value="pregnant">Pregnant Mother</option>
+              <option value="pet">Family Pet</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1">Vulnerability / Health Profile:</label>
+          <select id="new-member-condition" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200">
+            <option value="asthma">Asthma / Reactive Airway Disease</option>
+            <option value="copd">COPD / Chronic Bronchitis</option>
+            <option value="cardiac">Cardiovascular / Hypertension</option>
+            <option value="pregnancy">Pregnancy (Higher blood volume/intake)</option>
+            <option value="allergy">Allergic Rhinitis / Dust Allergy</option>
+            <option value="healthy">Generally Healthy / Athlete</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Baseline Peak Flow (L/min):</label>
+            <input type="number" id="new-member-pefr" placeholder="e.g. 320" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Preferred Mask:</label>
+            <select id="new-member-mask" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200">
+              <option value="KF94">KF94 (Kids / Snug fit)</option>
+              <option value="N95">N95 Headband (Airtight)</option>
+              <option value="FFP2">FFP2 Valve-Free</option>
+              <option value="None">None (Under 2 years / Pet)</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1">Assigned Bedroom / HEPA Zone:</label>
+          <input type="text" id="new-member-zone" placeholder="e.g. Nursery - Purifier CADR 240" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200">
+        </div>
+      </div>
+
+      <button onclick="saveNewFamilyMember()" class="w-full py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold transition">
+        Save Member Profile
+      </button>
+    </div>
+  </div>
+
+  <!-- 5. LOG VITALS MODAL -->
+  <div id="log-vitals-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="activity" class="w-5 h-5 text-emerald-400"></i>
+          <span>Log Daily Respiratory Vitals</span>
+        </h3>
+        <button onclick="closeLogVitalsModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-400 mb-1">Family Member:</label>
+          <select id="modal-vitals-member-select" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200">
+            <!-- Dynamically populated -->
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">SpO2 Oxygen (%):</label>
+            <input type="number" id="modal-vitals-spo2" min="80" max="100" value="98" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Peak Flow (L/min):</label>
+            <input type="number" id="modal-vitals-pefr" min="50" max="800" value="310" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Cough Level:</label>
+            <select id="modal-vitals-cough" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200">
+              <option value="none">None</option>
+              <option value="mild">Mild</option>
+              <option value="moderate">Moderate</option>
+              <option value="severe">Severe</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Inhaler Puffs Today:</label>
+            <input type="number" id="modal-vitals-inhaler" min="0" max="12" value="0" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200">
+          </div>
+        </div>
+      </div>
+
+      <button onclick="saveModalVitals()" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition">
+        Record Vitals & Update Health Score
+      </button>
+    </div>
+  </div>
+
+  <!-- 6. DOCTOR SUMMARY CLINICAL REPORT MODAL -->
+  <div id="doctor-summary-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div class="flex items-center space-x-2 text-amber-400">
+          <i data-lucide="stethoscope" class="w-6 h-6"></i>
+          <div>
+            <h3 class="text-base font-bold text-white">VayuLens Clinical Respiratory Health Export</h3>
+            <p class="text-[11px] text-slate-400">Formatted summary for Pulmonology & Pediatric consults</p>
+          </div>
+        </div>
+        <button onclick="closeDoctorSummaryModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
+      </div>
+
+      <div id="doctor-summary-content" class="space-y-4 text-xs text-slate-300">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <div class="flex items-center justify-between pt-3 border-t border-slate-800">
+        <button onclick="window.print()" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition">
+          <i data-lucide="printer" class="w-4 h-4"></i>
+          <span>Print / Save PDF</span>
+        </button>
+        <button onclick="closeDoctorSummaryModal()" class="text-xs text-slate-400 hover:text-white">
+          Close Window
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-slate-800 bg-slate-950 py-5 text-center text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+      <div>
+        <span class="font-bold text-slate-300">VayuLens (वायुLens)</span> — Transforming Urban Smog Defense with GenAI & Atmospheric Physics.
+      </div>
+      <div class="flex items-center space-x-4 text-[11px]">
+        <button onclick="switchTab('safety')" class="hover:text-slate-300 underline">Clinical Safety Guidelines</button>
+        <button onclick="showCorsiModal()" class="hover:text-slate-300 underline">DIY Corsi Box</button>
+        <button onclick="openApiKeyModal()" class="hover:text-slate-300 underline">Gemini Integration</button>
+      </div>
+    </div>
+  </footer>
+
+  <!-- SCRIPT -->
+  <script src="app.js"></script>
+</body>
+</html>
